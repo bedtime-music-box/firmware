@@ -1,0 +1,43 @@
+menu "Hardware Configuration"
+
+    menu "Pin Assignments"
+
+        config PIN_SPI_DIN
+            int "GPIO used for SPI DIN"
+            default 1
+
+        config PIN_SPI_CLK
+            int "GPIO used for SPI CLK"
+            default 2
+
+        config PIN_LCD_CS
+            int "GPIO used for LCD CS"
+            default 3
+
+        config PIN_LCD_DC
+            int "GPIO used for LCD DC"
+            default 4
+
+        config PIN_PANEL_RST
+            int "GPIO used for panel RST"
+            default 5
+
+        config PIN_PANEL_BL
+            int "GPIO used for panel BL"
+            default 6
+
+    endmenu
+
+    menu "Display Properties"
+
+        config LCD_H_RES
+            int "Horizontal resolution (width) in pixels"
+            default 240
+
+        config LCD_V_RES
+            int "Vertical resolution (height) in pixels"
+            default 320
+
+    endmenu
+
+endmenu
