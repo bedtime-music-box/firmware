@@ -1,1 +1,13 @@
-BasedOnStyle: Microsoft
+AccessModifierOffset: -4
+AlignAfterOpenBracket: BlockIndent
+AllowAllArgumentsOnNextLine: false
+BinPackArguments: false
+BinPackParameters: AlwaysOnePerLine
+BraceWrapping:
+  AfterClass: true
+  AfterFunction: true
+BreakBeforeBraces: Custom
+BreakConstructorInitializers: BeforeComma
+EmptyLineAfterAccessModifier: Leave
+IndentWidth: 4
+SeparateDefinitionBlocks: Always
