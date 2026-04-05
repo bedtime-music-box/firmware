@@ -22,37 +22,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "driver/spi_master.h"
-#include "esp_log.h"
-#include "freertos/task.h"
+#ifndef MACROS_H
+#define MACROS_H
 
-#include "sdkconfig.h"
-
-#include "ui.h"
-
-static const char *TAG = "MyApp";
-
-extern "C" void app_main()
-{
-    // Initialize SPI bus
-    spi_bus_config_t bus_config = {
-        .mosi_io_num = CONFIG_PIN_SPI_DIN,
-        .miso_io_num = -1,
-        .sclk_io_num = CONFIG_PIN_SPI_CLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-    };
-    ESP_ERROR_CHECK(
-        spi_bus_initialize(SPI2_HOST, &bus_config, SPI_DMA_CH_AUTO)
-    );
-
-    UI ui(SPI2_HOST);
-    auto err = ui.Initialize();
-    if (err != UI::Error::None) {
-        ESP_LOGE(TAG, "Error: %d", err);
-    } else {
-        ESP_LOGE(TAG, "No error occurred during initialization");
+/**
+ * Return false if the function call fails
+ */
+#define ENSURE(x)                                                              \
+    if (x != ESP_OK) {                                                         \
+        return false;                                                          \
     }
 
-    vTaskDelay(pdMS_TO_TICKS(10000));
-}
+#endif // MACROS_H
