@@ -54,5 +54,13 @@ extern "C" void app_main()
         ESP_LOGE(TAG, "No error occurred during initialization");
     }
 
+    vTaskDelay(pdMS_TO_TICKS(5000));
+
+    ui.SetBacklight(false);
+
+    vTaskDelay(pdMS_TO_TICKS(5000));
+
+    ui.SetBacklight(true);
+
     vTaskDelay(pdMS_TO_TICKS(10000));
 }

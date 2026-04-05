@@ -66,14 +66,14 @@ public:
     Error Initialize();
 
     /**
-     * Toggle power to the display
+     * Control power to the display
      */
-    bool TogglePower();
+    bool SetPower(bool);
 
     /**
-     * Toggle power to the backlight
+     * Control power to the backlight
      */
-    bool ToggleBacklight();
+    bool SetBacklight(bool);
 
 private:
 

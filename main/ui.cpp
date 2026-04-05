@@ -58,16 +58,24 @@ UI::Error UI::Initialize()
     if (lvgl_port_lock(0)) {
         lv_obj_t *screen = lv_disp_get_scr_act(m_disp);
 
-        lv_obj_t *label = lv_label_create(screen);
-        lv_label_set_text(label, "Hello World!");
-        lv_obj_set_style_text_font(label, LV_FONT_DEFAULT, 0);
-        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
-        lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_t *btn = lv_btn_create(screen);
+        lv_obj_set_size(btn, 120, 50);
+        lv_obj_align(btn, LV_ALIGN_CENTER, 0, 0);
+
+        lv_obj_t *label = lv_label_create(btn);
+        lv_label_set_text(label, "Click Me!");
+        lv_obj_center(label);
 
         lvgl_port_unlock();
     }
 
     return None;
+}
+
+bool UI::SetBacklight(bool enabled)
+{
+    ENSURE(gpio_set_level((gpio_num_t)CONFIG_PIN_PANEL_BL, enabled ? 1 : 0))
+    return true;
 }
 
 bool UI::InitializeLCD()
@@ -118,8 +126,7 @@ bool UI::InitializeGPIO()
     ENSURE(
         gpio_set_direction((gpio_num_t)CONFIG_PIN_PANEL_BL, GPIO_MODE_OUTPUT)
     )
-    ENSURE(gpio_set_level((gpio_num_t)CONFIG_PIN_PANEL_BL, 1))
-    return true;
+    return SetBacklight(true);
 }
 
 bool UI::InitializeLVGL()
@@ -133,11 +140,26 @@ bool UI::InitializeLVGL()
         .buffer_size = CONFIG_LCD_H_RES * 40,
         .hres = CONFIG_LCD_H_RES,
         .vres = CONFIG_LCD_V_RES,
+        .color_format = LV_COLOR_FORMAT_RGB565,
         .flags = {
             .buff_dma = true,
+            .swap_bytes = true,
         },
     };
 
     m_disp = lvgl_port_add_disp(&disp_cfg);
-    return m_disp != nullptr;
+    if (m_disp == nullptr) {
+        return false;
+    }
+
+    auto theme = lv_theme_default_init(
+        m_disp,
+        lv_palette_main(LV_PALETTE_BLUE),
+        lv_palette_main(LV_PALETTE_RED),
+        true,
+        LV_FONT_DEFAULT
+    );
+    lv_disp_set_theme(m_disp, theme);
+
+    return true;
 }
