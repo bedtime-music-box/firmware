@@ -1,0 +1,5 @@
+dependencies:
+  idf:
+    version: ">=4.1.0"
+  espressif/esp_lvgl_port: ">=2.0.0"
+  espressif/led_strip: ">=2.0.0"
