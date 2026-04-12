@@ -22,41 +22,126 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "ui.h"
+#include "driver/gpio.h"
+#include "esp_lcd_panel_io.h"
+#include "esp_lcd_panel_ops.h"
+#include "esp_lcd_panel_vendor.h"
+#include "esp_log.h"
+#include "esp_lvgl_port.h"
+#include "lvgl.h"
 
-#include "macros.h"
 #include "sdkconfig.h"
 
-UI::UI(spi_host_device_t host_id)
-    : m_host_id(host_id)
+#include "ui.h"
+
+static const char *TAG = "ui";
+
+static lv_disp_t *disp;
+
+bool ui_init(spi_host_device_t host_id)
 {
-}
-
-UI::Error UI::Initialize()
-{
-    if (!InitializeLCD()) {
-        return PanelIO;
+    // Initialize the LCD panel
+    esp_lcd_panel_io_handle_t io_handle;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+    esp_lcd_panel_io_spi_config_t io_config = {
+        .cs_gpio_num = CONFIG_PIN_LCD_CS,
+        .dc_gpio_num = CONFIG_PIN_LCD_DC,
+        .pclk_hz = 40'000'000,
+        .trans_queue_depth = 10,
+        .lcd_cmd_bits = 8,
+        .lcd_param_bits = 8,
+    };
+#pragma GCC diagnostic pop
+    if (esp_lcd_new_panel_io_spi(
+            (esp_lcd_spi_bus_handle_t)host_id,
+            &io_config,
+            &io_handle
+        ) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_lcd_new_panel_io_spi() failed");
+        return false;
     }
 
-    if (!InitializeST7789()) {
-        return PanelST7789;
+    // Initialize the ST7789 driver
+    esp_lcd_panel_handle_t panel_handle;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+    esp_lcd_panel_dev_config_t panel_dev_config = {
+        .reset_gpio_num = CONFIG_PIN_PANEL_RST,
+        .rgb_endian = LCD_RGB_ENDIAN_RGB,
+        .bits_per_pixel = 16,
+    };
+#pragma GCC diagnostic pop
+    if (esp_lcd_new_panel_st7789(io_handle, &panel_dev_config, &panel_handle) !=
+        ESP_OK) {
+        ESP_LOGE(TAG, "esp_lcd_new_panel_st7789() failed");
+        return false;
     }
 
-    if (!InitializeDisplay()) {
-        return Display;
+    // Setup the display
+    if (esp_lcd_panel_reset(panel_handle) != ESP_OK ||
+        esp_lcd_panel_init(panel_handle) != ESP_OK ||
+        esp_lcd_panel_disp_on_off(panel_handle, true) != ESP_OK ||
+        esp_lcd_panel_invert_color(panel_handle, true) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_lcd_*() functions failed");
+        return false;
     }
 
-    if (!InitializeGPIO()) {
-        return GPIO;
+    // Initialize the GPIO pin used for the backlight
+    if (gpio_set_direction((gpio_num_t)CONFIG_PIN_PANEL_BL, GPIO_MODE_OUTPUT) !=
+            ESP_OK ||
+        gpio_set_level((gpio_num_t)CONFIG_PIN_PANEL_BL, 1) != ESP_OK) {
+        ESP_LOGE(TAG, "gpio_*() functions failed");
+        return false;
     }
 
-    if (!InitializeLVGL()) {
-        return LVGL;
+    // Initialize the LVGL port configuration
+    lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    if (lvgl_port_init(&lvgl_cfg) != ESP_OK) {
+        ESP_LOGE(TAG, "lvgl_port_init() failed");
+        return false;
     }
 
-    // TODO: this is currently for testing
+    // Create the display
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+    lvgl_port_display_cfg_t disp_cfg = {
+        .io_handle = io_handle,
+        .panel_handle = panel_handle,
+        .buffer_size = CONFIG_LCD_H_RES * 40,
+        .hres = CONFIG_LCD_V_RES,
+        .vres = CONFIG_LCD_H_RES,
+        .rotation =
+            {
+                .swap_xy = true,
+                .mirror_y = true,
+            },
+        .color_format = LV_COLOR_FORMAT_RGB565,
+        .flags = {
+            .buff_dma = true,
+            .swap_bytes = true,
+        },
+    };
+#pragma GCC diagnostic pop
+    disp = lvgl_port_add_disp(&disp_cfg);
+    if (disp == nullptr) {
+        ESP_LOGE(TAG, "lvgl_port_add_disp() failed");
+        return false;
+    }
+
+    // Initialize the default theme
+    auto theme = lv_theme_default_init(
+        disp,
+        lv_palette_main(LV_PALETTE_BLUE),
+        lv_palette_main(LV_PALETTE_RED),
+        true,
+        LV_FONT_DEFAULT
+    );
+    lv_disp_set_theme(disp, theme);
+
+    // TODO: testing
     if (lvgl_port_lock(0)) {
-        lv_obj_t *screen = lv_disp_get_scr_act(m_disp);
+        lv_obj_t *screen = lv_disp_get_scr_act(disp);
 
         lv_obj_t *btn = lv_btn_create(screen);
         lv_obj_set_size(btn, 120, 50);
@@ -69,97 +154,16 @@ UI::Error UI::Initialize()
         lvgl_port_unlock();
     }
 
-    return None;
-}
-
-bool UI::SetBacklight(bool enabled)
-{
-    ENSURE(gpio_set_level((gpio_num_t)CONFIG_PIN_PANEL_BL, enabled ? 1 : 0))
+    // Everything was successful
     return true;
 }
 
-bool UI::InitializeLCD()
+void ui_set_error(const char *message)
 {
-    esp_lcd_panel_io_spi_config_t io_config = {
-        .cs_gpio_num = CONFIG_PIN_LCD_CS,
-        .dc_gpio_num = CONFIG_PIN_LCD_DC,
-        .spi_mode = 0,
-        .pclk_hz = 5'000'000, // TODO: turn this up after soldering
-        .trans_queue_depth = 10,
-        .lcd_cmd_bits = 8,
-        .lcd_param_bits = 8,
-    };
-    ENSURE(esp_lcd_new_panel_io_spi(
-        (esp_lcd_spi_bus_handle_t)m_host_id,
-        &io_config,
-        &m_io_handle
-    ))
-    return true;
+    //...
 }
 
-bool UI::InitializeST7789()
+void ui_send_button(int which)
 {
-    esp_lcd_panel_dev_config_t panel_dev_config = {
-        .reset_gpio_num = CONFIG_PIN_PANEL_RST,
-        .rgb_endian = LCD_RGB_ENDIAN_RGB,
-        .bits_per_pixel = 16,
-    };
-    ENSURE(esp_lcd_new_panel_st7789(
-        m_io_handle,
-        &panel_dev_config,
-        &m_panel_handle
-    ))
-    return true;
-}
-
-bool UI::InitializeDisplay()
-{
-    ENSURE(esp_lcd_panel_reset(m_panel_handle))
-    ENSURE(esp_lcd_panel_init(m_panel_handle))
-    ENSURE(esp_lcd_panel_disp_on_off(m_panel_handle, true))
-    ENSURE(esp_lcd_panel_invert_color(m_panel_handle, true))
-    return true;
-}
-
-bool UI::InitializeGPIO()
-{
-    ENSURE(
-        gpio_set_direction((gpio_num_t)CONFIG_PIN_PANEL_BL, GPIO_MODE_OUTPUT)
-    )
-    return SetBacklight(true);
-}
-
-bool UI::InitializeLVGL()
-{
-    lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
-    ENSURE(lvgl_port_init(&lvgl_cfg))
-
-    lvgl_port_display_cfg_t disp_cfg = {
-        .io_handle = m_io_handle,
-        .panel_handle = m_panel_handle,
-        .buffer_size = CONFIG_LCD_H_RES * 40,
-        .hres = CONFIG_LCD_H_RES,
-        .vres = CONFIG_LCD_V_RES,
-        .color_format = LV_COLOR_FORMAT_RGB565,
-        .flags = {
-            .buff_dma = true,
-            .swap_bytes = true,
-        },
-    };
-
-    m_disp = lvgl_port_add_disp(&disp_cfg);
-    if (m_disp == nullptr) {
-        return false;
-    }
-
-    auto theme = lv_theme_default_init(
-        m_disp,
-        lv_palette_main(LV_PALETTE_BLUE),
-        lv_palette_main(LV_PALETTE_RED),
-        true,
-        LV_FONT_DEFAULT
-    );
-    lv_disp_set_theme(m_disp, theme);
-
-    return true;
+    //...
 }

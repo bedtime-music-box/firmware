@@ -22,71 +22,28 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef UI_H
-#define UI_H
+#pragma once
 
-#include "driver/gpio.h"
-#include "driver/spi_master.h"
-#include "esp_lcd_panel_io.h"
-#include "esp_lcd_panel_ops.h"
-#include "esp_lcd_panel_vendor.h"
-#include "esp_lvgl_port.h"
-#include "lvgl.h"
+#include "driver/spi_common.h"
 
 /**
- * Initialize and manage the ST7789 panel and user interface
+ *  Initialize the UI
  *
- * It is expected that the provided SPI bus is already initialized.
+ * @param host_id SPI bus to use
+ * @return true if successful
  */
-class UI
-{
-public:
+bool ui_init(spi_host_device_t host_id);
 
-    /**
-     * Indicate what stage of initialization caused an error
-     */
-    enum Error {
-        None = 0,
-        PanelIO,
-        PanelST7789,
-        Display,
-        GPIO,
-        LVGL,
-    };
+/**
+ * Indicate a fatal error has occurred
+ *
+ * @param message description of the error
+ */
+void ui_set_error(const char *message);
 
-    UI(spi_host_device_t);
-
-    /**
-     * Initialize the panel
-     *
-     * This must be called before any other methods.
-     *
-     * @return error category upon failure
-     */
-    Error Initialize();
-
-    /**
-     * Control power to the display
-     */
-    bool SetPower(bool);
-
-    /**
-     * Control power to the backlight
-     */
-    bool SetBacklight(bool);
-
-private:
-
-    bool InitializeLCD();
-    bool InitializeST7789();
-    bool InitializeDisplay();
-    bool InitializeGPIO();
-    bool InitializeLVGL();
-
-    spi_host_device_t m_host_id;
-    esp_lcd_panel_io_handle_t m_io_handle;
-    esp_lcd_panel_handle_t m_panel_handle;
-    lv_disp_t *m_disp;
-};
-
-#endif // UI_H
+/**
+ * Send a button event to the UI
+ *
+ * @param which button number
+ */
+void ui_send_button(int which);

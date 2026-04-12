@@ -2,9 +2,13 @@ menu "Hardware Configuration"
 
     menu "Pin Assignments"
 
-        config PIN_SPI_DIN
-            int "GPIO used for SPI DIN"
+        config PIN_SPI_MOSI
+            int "GPIO used for SPI MOSI"
             default 1
+
+        config PIN_SPI_MISO
+            int "GPIO used for SPI MISO"
+            default 12
 
         config PIN_SPI_CLK
             int "GPIO used for SPI CLK"

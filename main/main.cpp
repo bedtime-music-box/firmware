@@ -36,8 +36,8 @@ extern "C" void app_main()
 {
     // Initialize SPI bus
     spi_bus_config_t bus_config = {
-        .mosi_io_num = CONFIG_PIN_SPI_DIN,
-        .miso_io_num = -1,
+        .mosi_io_num = CONFIG_PIN_SPI_MOSI,
+        .miso_io_num = CONFIG_PIN_SPI_MISO,
         .sclk_io_num = CONFIG_PIN_SPI_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
@@ -46,21 +46,9 @@ extern "C" void app_main()
         spi_bus_initialize(SPI2_HOST, &bus_config, SPI_DMA_CH_AUTO)
     );
 
-    UI ui(SPI2_HOST);
-    auto err = ui.Initialize();
-    if (err != UI::Error::None) {
-        ESP_LOGE(TAG, "Error: %d", err);
-    } else {
-        ESP_LOGE(TAG, "No error occurred during initialization");
+    if (!ui_init(SPI2_HOST)) {
+        ESP_LOGE(TAG, "error occurred during initialization");
     }
-
-    vTaskDelay(pdMS_TO_TICKS(5000));
-
-    ui.SetBacklight(false);
-
-    vTaskDelay(pdMS_TO_TICKS(5000));
-
-    ui.SetBacklight(true);
 
     vTaskDelay(pdMS_TO_TICKS(10000));
 }
