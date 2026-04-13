@@ -32,11 +32,15 @@
 
 #include "sdkconfig.h"
 
+#include "screens/boot.h"
 #include "ui.h"
+#include "util/lvgllocker.h"
 
 static const char *TAG = "ui";
 
 static lv_disp_t *disp;
+
+static lv_obj_t *screen_boot;
 
 bool ui_init(spi_host_device_t host_id)
 {
@@ -134,24 +138,18 @@ bool ui_init(spi_host_device_t host_id)
         disp,
         lv_palette_main(LV_PALETTE_BLUE),
         lv_palette_main(LV_PALETTE_RED),
-        true,
+        false,
         LV_FONT_DEFAULT
     );
     lv_disp_set_theme(disp, theme);
 
-    // TODO: testing
-    if (lvgl_port_lock(0)) {
-        lv_obj_t *screen = lv_disp_get_scr_act(disp);
+    // Create the screens
+    screen_boot = screen_boot_create(disp);
 
-        lv_obj_t *btn = lv_btn_create(screen);
-        lv_obj_set_size(btn, 120, 50);
-        lv_obj_align(btn, LV_ALIGN_CENTER, 0, 0);
-
-        lv_obj_t *label = lv_label_create(btn);
-        lv_label_set_text(label, "Click Me!");
-        lv_obj_center(label);
-
-        lvgl_port_unlock();
+    // Set the boot screen active
+    {
+        LVGLLocker();
+        lv_disp_load_scr(screen_boot);
     }
 
     // Everything was successful

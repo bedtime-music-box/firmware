@@ -22,37 +22,55 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "driver/spi_master.h"
-#include "esp_log.h"
+#include "driver/sdmmc_defs.h"
+#include "driver/sdspi_host.h"
+#include "esp_vfs_fat.h"
+#include "sdmmc_cmd.h"
 
 #include "sdkconfig.h"
 
 #include "fs.h"
-#include "ui.h"
 
-static const char *TAG = "main";
+static const char *TAG = "fs";
+static const char *mount_point = "/sdcard";
 
-extern "C" void app_main()
+bool fs_init(spi_host_device_t host_id)
 {
-    // Initialize SPI bus
-    spi_bus_config_t bus_config = {
-        .mosi_io_num = CONFIG_PIN_SPI_MOSI,
-        .miso_io_num = CONFIG_PIN_SPI_MISO,
-        .sclk_io_num = CONFIG_PIN_SPI_CLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
+    // Initialize the SD host
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    host.slot = host_id;
+
+    sdspi_device_config_t device_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    device_config.gpio_cs = (gpio_num_t)CONFIG_PIN_SD_CS;
+    device_config.host_id = host_id;
+
+    esp_vfs_fat_sdmmc_mount_config_t mount_cfg = {
+        .max_files = 5,
+        .allocation_unit_size = 16 * 1024,
     };
-    ESP_ERROR_CHECK(
-        spi_bus_initialize(SPI2_HOST, &bus_config, SPI_DMA_CH_AUTO)
-    );
-
-    if (!ui_init(SPI2_HOST)) {
-        ESP_LOGE(TAG, "display error");
+    sdmmc_card_t *card;
+    if (esp_vfs_fat_sdspi_mount(
+            mount_point,
+            &host,
+            &device_config,
+            &mount_cfg,
+            &card
+        ) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_vfs_fat_sdspi_mount() failed");
+        return false;
     }
 
-    /*
-    if (!fs_init(SPI2_HOST)) {
-        ESP_LOGE(TAG, "sdcard error");
+    FILE *f = fopen("/sdcard/test.txt", "r");
+    if (!f) {
+        ESP_LOGE(TAG, "Unable to open file");
+    } else {
+        char line[128];
+        while (fgets(line, sizeof(line), f)) {
+            ESP_LOGI(TAG, "Line: %s", line);
+        }
+        fclose(f);
     }
-    */
+
+    // Everything was successful
+    return true;
 }

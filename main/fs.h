@@ -22,37 +22,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "driver/spi_master.h"
-#include "esp_log.h"
+#pragma once
 
-#include "sdkconfig.h"
+#include "driver/spi_common.h"
 
-#include "fs.h"
-#include "ui.h"
-
-static const char *TAG = "main";
-
-extern "C" void app_main()
-{
-    // Initialize SPI bus
-    spi_bus_config_t bus_config = {
-        .mosi_io_num = CONFIG_PIN_SPI_MOSI,
-        .miso_io_num = CONFIG_PIN_SPI_MISO,
-        .sclk_io_num = CONFIG_PIN_SPI_CLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-    };
-    ESP_ERROR_CHECK(
-        spi_bus_initialize(SPI2_HOST, &bus_config, SPI_DMA_CH_AUTO)
-    );
-
-    if (!ui_init(SPI2_HOST)) {
-        ESP_LOGE(TAG, "display error");
-    }
-
-    /*
-    if (!fs_init(SPI2_HOST)) {
-        ESP_LOGE(TAG, "sdcard error");
-    }
-    */
-}
+/**
+ * Initialize access to the filesystem
+ *
+ * @param host_id SPI bus to use
+ * @return true if successful
+ */
+bool fs_init(spi_host_device_t host_id);

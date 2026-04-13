@@ -30,6 +30,10 @@ menu "Hardware Configuration"
             int "GPIO used for panel BL"
             default 6
 
+        config PIN_SD_CS
+            int "GPIO used for SD CS"
+            default 13
+
     endmenu
 
     menu "Display Properties"
