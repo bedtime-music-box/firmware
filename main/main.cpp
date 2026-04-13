@@ -35,6 +35,8 @@ static const char *TAG = "main";
 extern "C" void app_main()
 {
     // Initialize SPI bus
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
     spi_bus_config_t bus_config = {
         .mosi_io_num = CONFIG_PIN_SPI_MOSI,
         .miso_io_num = CONFIG_PIN_SPI_MISO,
@@ -42,6 +44,7 @@ extern "C" void app_main()
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
     };
+#pragma GCC diagnostic pop
     ESP_ERROR_CHECK(
         spi_bus_initialize(SPI2_HOST, &bus_config, SPI_DMA_CH_AUTO)
     );
